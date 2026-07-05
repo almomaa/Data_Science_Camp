@@ -14,6 +14,7 @@ a few knobs to change, and a "THINGS TO TRY" section at the bottom.
 | 3 | `dna3_sickle_cell.m` | **One letter matters.** A single base change (Hamming distance 1) causes sickle cell anemia. Includes DNA→protein translation. |
 | 4 | `dna4_molecular_clock.m` | **Mutations pile up over time.** Distance grows with generations — how we date species splits and track virus variants. |
 | 5 | `dna5_hamming_limit.m` | **Where Hamming breaks.** One inserted letter ruins the naive count — motivates sequence alignment / edit distance / BLAST. |
+| 6 | `dna6_catching_a_criminal.m` | **Finding a criminal through relatives.** The suspect isn't in the database, but cousins are — shared-DNA % reveals how close a relative each match is, and the family tree gives him away (the real Golden State Killer method). Includes an ethics discussion. |
 
 ## Shared helper functions (used by the scripts)
 
@@ -26,3 +27,4 @@ a few knobs to change, and a "THINGS TO TRY" section at the bottom.
 2. **Script 2** is the centerpiece — the "who is the mystery DNA?" reveal.
 3. **Script 3** is the emotional punch — distance of 1, a whole disease.
 4. **Scripts 4 and 5** are stretch material: the molecular clock, and the honest limitation that leads to real-world tools like BLAST.
+5. **Script 6** is the crowd-pleaser finale — catching a criminal through their relatives — and doubles as an ethics discussion.
