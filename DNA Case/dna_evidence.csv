@@ -1,0 +1,3 @@
+EvidenceID,Description,Sequence,Notes
+E01,DNA-like sequence from water bottle near missing trophy,ATCGTACGTTAGCGTACGATCGTTAACCGGATCGTA,Clean teaching sequence. Equal length with all candidates.
+E02,Partial/noisy evidence sequence with unknown letters marked N,ATCGTACGTTNGCGTACGATCGTNAACCGGATCGTA,Challenge version. Ignore N positions when comparing.

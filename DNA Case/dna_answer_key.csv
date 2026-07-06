@@ -1,0 +1,13 @@
+EvidenceID,CandidateID,FictionalName,HammingDistance,Rank,Interpretation
+E01,C01,Jordan Lee,0,1,Closest match
+E01,C02,Mia Chen,2,2,Not closest
+E01,C03,Sam Patel,4,3,Not closest
+E01,C04,Alex Rivera,6,4,Not closest
+E01,C05,Taylor Brooks,8,5,Not closest
+E01,C06,Riley Morgan,10,6,Not closest
+E02,C01,Jordan Lee,0,1,Closest match
+E02,C02,Mia Chen,2,2,Not closest
+E02,C03,Sam Patel,4,3,Not closest
+E02,C04,Alex Rivera,6,4,Not closest
+E02,C05,Taylor Brooks,8,5,Not closest
+E02,C06,Riley Morgan,10,6,Not closest
