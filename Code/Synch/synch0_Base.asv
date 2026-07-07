@@ -1,0 +1,18 @@
+clearvars; close all; clc;
+
+
+
+
+
+
+x = 1;
+
+
+for i=1:500
+    x(i+1) = x(i);
+
+
+    plot(1:i,x,'b-')
+
+    drawnow
+end

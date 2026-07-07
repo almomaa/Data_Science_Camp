@@ -19,7 +19,7 @@ clear; close all; clc;
 % ---- Things to play with ----
 f1        = 1.00;   % natural speed of clock 1 (ticks per second)
 f2        = 1.15;   % natural speed of clock 2 (a bit faster)
-K         = 0.0;    % coupling strength through the wall (try 0 - see below!)
+K         = 0.2;    % coupling strength through the wall (try 0 - see below!)
 playSpeed = 1.0;    % 0.5 = slow motion, 1 = normal
 T         = 40;     % seconds to simulate
 
