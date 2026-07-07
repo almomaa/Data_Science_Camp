@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fireflies in Sync</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#05060a;color:#f3e9d2;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas{position:fixed;inset:0;display:block}
+  #title{position:fixed;top:12px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#ffd98a;text-shadow:0 0 18px rgba(255,190,90,.5)}
+  #title p{margin:3px auto 0;max-width:620px;font-size:12.5px;color:#b9b09a}
+  .panel{position:fixed;z-index:3;background:rgba(16,18,26,.72);backdrop-filter:blur(8px);
+         border:1px solid rgba(255,210,130,.18);border-radius:14px;padding:14px 16px;top:70px;left:16px;width:250px}
+  .row{margin:0 0 12px}.row:last-child{margin-bottom:0}
+  label{display:flex;justify-content:space-between;font-size:12.5px;color:#cfc6b0;margin-bottom:5px}
+  label b{color:#ffd98a;font-weight:600}
+  input[type=range]{width:100%;accent-color:#ffbe5a;cursor:pointer}
+  button{width:100%;padding:8px;margin-top:4px;font-size:12.5px;font-weight:600;color:#1a140a;
+         background:#ffbe5a;border:none;border-radius:9px;cursor:pointer}
+  #meter{position:fixed;bottom:24px;left:0;right:0;text-align:center;z-index:3;pointer-events:none}
+  #bar{width:min(420px,70vw);height:9px;margin:0 auto;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden}
+  #fill{height:100%;width:0;background:linear-gradient(90deg,#ff9a3c,#ffd98a)}
+  #pct{font-size:24px;font-weight:700;color:#ffd98a;margin-top:8px}
+  #cap{font-size:13px;color:#b9b09a}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#ffd98a;text-decoration:none;font-size:13px;
+         background:rgba(16,18,26,.7);border:1px solid rgba(255,210,130,.2);border-radius:8px;padding:5px 10px}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>Fireflies in sync</h1><p>Each firefly flashes on its own timer and nudges toward the ones it sees. No leader — unison just appears.</p></div>
+<div class="panel">
+  <div class="row"><label>Fireflies <b id="no">220</b></label><input type="range" id="n" min="30" max="500" step="10" value="220"></div>
+  <div class="row"><label>Coupling (togetherness) <b id="ko">1.5</b></label><input type="range" id="k" min="0" max="4" step="0.05" value="1.5"></div>
+  <div class="row"><label>Flash speed <b id="so">0.90</b> Hz</label><input type="range" id="s" min="0.2" max="2" step="0.05" value="0.9"></div>
+  <div class="row"><button id="scramble">Scramble</button></div>
+</div>
+<div id="meter"><div id="bar"><div id="fill"></div></div><div id="pct">0%</div><div id="cap">everyone marching alone</div></div>
+<canvas id="c"></canvas>
+<script>
+// ====== CORE SETTINGS — change these! ======
+const CONFIG = {
+  N: 220,        // how many fireflies
+  K: 1.5,        // coupling: how strongly each reacts to the group
+  speed: 0.90,   // base flash rate (Hz)
+  variety: 0.15  // spread of natural rhythms (0 = identical)
+};
+// ===========================================
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H,dpr,flies=[],lastR=0,lastPsi=0;
+// a soft glow sprite, drawn once
+const g=document.createElement('canvas');g.width=g.height=64;const gx=g.getContext('2d');
+const gr=gx.createRadialGradient(32,32,0,32,32,32);
+gr.addColorStop(0,'rgba(255,240,200,1)');gr.addColorStop(.28,'rgba(255,200,90,.9)');
+gr.addColorStop(.6,'rgba(255,150,40,.25)');gr.addColorStop(1,'rgba(255,140,0,0)');
+gx.fillStyle=gr;gx.fillRect(0,0,64,64);
+let stars=[];
+function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  stars=[];for(let i=0;i<90;i++)stars.push({x:Math.random(),y:Math.random(),a:.15+.35*Math.random()});}
+addEventListener('resize',resize);resize();
+
+function make(n){flies=[];for(let i=0;i<n;i++)flies.push({x:Math.random(),y:Math.random(),
+  th:Math.random()*6.28,nat:1+CONFIG.variety*(Math.random()*2-1)});}
+make(CONFIG.N);
+const $=id=>document.getElementById(id);
+$('n').oninput=e=>{CONFIG.N=+e.target.value;$('no').textContent=CONFIG.N;make(CONFIG.N);};
+$('k').oninput=e=>{CONFIG.K=+e.target.value;$('ko').textContent=CONFIG.K.toFixed(2);};
+$('s').oninput=e=>{CONFIG.speed=+e.target.value;$('so').textContent=CONFIG.speed.toFixed(2);};
+$('scramble').onclick=()=>flies.forEach(f=>f.th=Math.random()*6.28);
+
+let last=performance.now();
+function frame(now){let dt=Math.min(.05,(now-last)/1000);last=now;step(dt);draw();requestAnimationFrame(frame);}
+function step(dt){
+  const K=CONFIG.K,sp=CONFIG.speed,N=flies.length;
+  let sS=0,sC=0;for(const f of flies){sS+=Math.sin(f.th);sC+=Math.cos(f.th);}
+  const r=Math.hypot(sS,sC)/N, psi=Math.atan2(sS,sC);
+  for(const f of flies) f.th+=dt*(2*Math.PI*sp*f.nat + K*r*Math.sin(psi-f.th));
+  lastR=r;lastPsi=psi;
+  const p=Math.round(r*100);
+  $('fill').style.width=p+'%';$('pct').textContent=p+'%';
+  $('cap').textContent = p<30?'everyone marching alone':p<75?'starting to agree…':'flashing as one!';
+}
+function draw(){
+  ctx.globalCompositeOperation='source-over';ctx.fillStyle='#05060a';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fff';for(const s of stars){ctx.globalAlpha=s.a;ctx.fillRect(s.x*W,s.y*H,1.4,1.4);}ctx.globalAlpha=1;
+  const flash=Math.exp(3*(Math.cos(lastPsi)-1))*lastR;
+  if(flash>.02){const rg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);
+    rg.addColorStop(0,'rgba(255,190,90,'+(0.16*flash).toFixed(3)+')');rg.addColorStop(1,'rgba(255,190,90,0)');
+    ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);}
+  ctx.globalCompositeOperation='lighter';
+  for(const f of flies){const b=Math.exp(3*(Math.cos(f.th)-1)),sz=8+40*b;
+    ctx.globalAlpha=.18+.82*b;ctx.drawImage(g,f.x*W-sz/2,f.y*H-sz/2,sz,sz);}
+  ctx.globalAlpha=1;
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

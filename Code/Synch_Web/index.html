@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synchronization — interactive lab</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100%;background:radial-gradient(1200px 600px at 50% -10%,#141726,#080910);
+       color:#ede7d6;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:48px 20px 60px}
+  header{text-align:center;max-width:760px;margin:0 auto 34px}
+  h1{font-size:30px;margin:0 0 8px;color:#ffbe5a;text-shadow:0 0 22px rgba(255,190,90,.35)}
+  header p{margin:0;color:#b6ad97;font-size:15px;line-height:1.6}
+  .grid{max-width:940px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  a.card{display:block;text-decoration:none;color:inherit;background:rgba(20,22,32,.7);
+         border:1px solid rgba(255,210,130,.16);border-radius:16px;padding:20px 22px;transition:.15s}
+  a.card:hover{border-color:rgba(255,210,130,.5);transform:translateY(-3px);background:rgba(28,30,44,.8)}
+  .num{font-size:13px;color:#7f8aa0;font-weight:600;letter-spacing:.5px}
+  .card h2{margin:6px 0 6px;font-size:18px;color:#ffd98a;font-weight:600}
+  .card p{margin:0;font-size:13.5px;color:#a49c88;line-height:1.55}
+  footer{text-align:center;color:#6f6a5c;font-size:12.5px;margin-top:36px}
+</style>
+</head>
+<body>
+  <header>
+    <h1>Synchronization</h1>
+    <p>Simple rules, connected together, make order appear on its own — from two old clocks on a wall to fireflies, brains, bridges and chaos. Pick a world to explore. Every screen has sliders; drag them and watch what happens.</p>
+  </header>
+
+  <div class="grid">
+    <a class="card" href="1_two_clocks.html">
+      <div class="num">01</div><h2>The clocks that talked</h2>
+      <p>Two pendulum clocks on one wall drift into a locked rhythm. The first sync ever recorded (Huygens, 1665).</p></a>
+    <a class="card" href="2_fireflies.html">
+      <div class="num">02</div><h2>Fireflies in unison</h2>
+      <p>A field of fireflies, each on its own beat, flashing as one. No leader — just neighbours nudging neighbours.</p></a>
+    <a class="card" href="3_kuramoto.html">
+      <div class="num">03</div><h2>The Kuramoto model</h2>
+      <p>The equation behind it all: many oscillators on a circle, and a sync meter that jumps at a tipping point.</p></a>
+    <a class="card" href="4_millennium_bridge.html">
+      <div class="num">04</div><h2>The bridge that danced</h2>
+      <p>When sync goes wrong: a crowd and a wobbly bridge feed each other into a runaway sway.</p></a>
+    <a class="card" href="5_good_vs_bad_sync.html">
+      <div class="num">05</div><h2>Good sync, bad sync</h2>
+      <p>A heartbeat, a seizure, an applause. Sometimes syncing keeps you alive; sometimes it is the danger.</p></a>
+    <a class="card" href="6_lorenz_sync.html">
+      <div class="num">06</div><h2>Taming chaos</h2>
+      <p>Two chaotic Lorenz "weathers" forced to move as one. Drag the coupling and watch the gap collapse.</p></a>
+    <a class="card" href="7_information_flow.html">
+      <div class="num">07</div><h2>Information flow</h2>
+      <p>Be a data scientist: from two columns of numbers, measure how much information passes down the wire.</p></a>
+  </div>
+
+  <footer>Data Science Camp · Day 2 · open any file by itself, or edit the CONFIG block at the top of its code.</footer>
+</body>
+</html>

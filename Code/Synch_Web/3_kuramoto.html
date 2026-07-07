@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuramoto Model</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#080910;color:#ede7d6;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas{position:fixed;inset:0;display:block}
+  #title{position:fixed;top:12px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#ffbe5a;text-shadow:0 0 16px rgba(255,190,90,.4)}
+  #title p{margin:3px auto 0;max-width:640px;font-size:12.5px;color:#b6ad97}
+  .panel{position:fixed;z-index:3;background:rgba(20,22,32,.74);backdrop-filter:blur(8px);
+         border:1px solid rgba(255,210,130,.18);border-radius:14px;padding:14px 16px;top:70px;left:16px;width:250px}
+  .row{margin:0 0 12px}.row:last-child{margin-bottom:0}
+  label{display:flex;justify-content:space-between;font-size:12.5px;color:#cfc6b0;margin-bottom:5px}
+  label b{color:#ffbe5a;font-weight:600}
+  input[type=range]{width:100%;accent-color:#ffbe5a;cursor:pointer}
+  button{width:100%;padding:8px;margin-top:4px;font-size:12.5px;font-weight:600;color:#1a140a;
+         background:#ffbe5a;border:none;border-radius:9px;cursor:pointer}
+  #meter{position:fixed;bottom:22px;left:0;right:0;text-align:center;z-index:3;pointer-events:none}
+  #meter .big{font-size:24px;font-weight:700;color:#ffbe5a}
+  #meter .cap{font-size:13px;color:#b6ad97}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#ffbe5a;text-decoration:none;font-size:13px;
+         background:rgba(20,22,32,.7);border:1px solid rgba(255,210,130,.2);border-radius:8px;padding:5px 10px}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>The Kuramoto model</h1>
+  <p>Each dot is an oscillator on a circle, coloured by its phase. The gold arrow is the "order parameter": long arrow = in sync. Raise the coupling K past a tipping point and order snaps on.</p></div>
+<div class="panel">
+  <div class="row"><label>Oscillators N <b id="no">200</b></label><input type="range" id="n" min="20" max="600" step="10" value="200"></div>
+  <div class="row"><label>Coupling K <b id="ko">1.20</b></label><input type="range" id="k" min="0" max="4" step="0.05" value="1.2"></div>
+  <div class="row"><label>Variety of rhythms <b id="vo">0.60</b></label><input type="range" id="v" min="0" max="2" step="0.05" value="0.6"></div>
+  <div class="row"><button id="scramble">Scramble phases</button></div>
+</div>
+<div id="meter"><div class="big" id="rval">sync r = 0.00</div><div class="cap" id="cap">a swirl of independent rhythms</div></div>
+<canvas id="c"></canvas>
+<script>
+// ====== CORE SETTINGS — change these! ======
+const CONFIG = {
+  N: 200,        // number of oscillators
+  K: 1.2,        // coupling strength (the key knob)
+  variety: 0.6   // spread of natural frequencies (bigger = harder to sync)
+};
+// ===========================================
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H,dpr,th=[],om=[];
+function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+addEventListener('resize',resize);resize();
+
+function build(n){th=[];om=[];for(let i=0;i<n;i++){th.push(Math.random()*6.28);
+  om.push(1+CONFIG.variety*(Math.random()*2-1));}}
+build(CONFIG.N);
+const $=id=>document.getElementById(id);
+$('n').oninput=e=>{CONFIG.N=+e.target.value;$('no').textContent=CONFIG.N;build(CONFIG.N);};
+$('k').oninput=e=>{CONFIG.K=+e.target.value;$('ko').textContent=CONFIG.K.toFixed(2);};
+$('v').oninput=e=>{CONFIG.variety=+e.target.value;$('vo').textContent=CONFIG.variety.toFixed(2);
+  for(let i=0;i<om.length;i++)om[i]=1+CONFIG.variety*(Math.random()*2-1);};
+$('scramble').onclick=()=>{for(let i=0;i<th.length;i++)th[i]=Math.random()*6.28;};
+
+function hsl(a){return 'hsl('+(a*180/Math.PI+180)+',85%,60%)';}
+let last=performance.now();
+function frame(now){let dt=Math.min(.04,(now-last)/1000);last=now;
+  const N=th.length,K=CONFIG.K;
+  let sS=0,sC=0;for(let i=0;i<N;i++){sS+=Math.sin(th[i]);sC+=Math.cos(th[i]);}
+  const r=Math.hypot(sS,sC)/N, psi=Math.atan2(sS,sC);
+  for(let i=0;i<N;i++) th[i]+=dt*(om[i]+K*r*Math.sin(psi-th[i]));
+  draw(r,psi);requestAnimationFrame(frame);
+}
+function draw(r,psi){
+  ctx.fillStyle='#080910';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H*0.54,R=Math.min(W,H)*0.32;
+  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.stroke();
+  // oscillators sit on the ring, coloured by phase
+  for(let i=0;i<th.length;i++){const a=th[i],x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);
+    ctx.fillStyle=hsl(a);ctx.beginPath();ctx.arc(x,y,4.5,0,7);ctx.fill();}
+  // the order-parameter arrow (length = r)
+  const ex=cx+R*r*Math.cos(psi),ey=cy+R*r*Math.sin(psi);
+  ctx.strokeStyle='#ffbe5a';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ex,ey);ctx.stroke();
+  ctx.fillStyle='#ffbe5a';ctx.beginPath();ctx.arc(ex,ey,7,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();
+  $('rval').textContent='sync  r = '+r.toFixed(2);
+  $('cap').textContent = r<0.3?'a swirl of independent rhythms':r<0.7?'clumping together…':'locked into one rhythm!';
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

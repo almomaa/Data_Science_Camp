@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Information Flow</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0c12;color:#ede7d6;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  #title{text-align:center;padding:12px 12px 2px}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#8fb7ff}
+  #title p{margin:3px auto 0;max-width:680px;font-size:12.5px;color:#a8adbd}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#8fb7ff;text-decoration:none;font-size:13px;
+         background:rgba(20,22,32,.7);border:1px solid rgba(140,170,230,.25);border-radius:8px;padding:5px 10px}
+  .wrap{display:flex;flex-direction:column;height:calc(100% - 66px);padding:6px 18px 14px;gap:12px}
+  .top{flex:1;min-height:0;background:#070810;border-radius:12px;position:relative}
+  .bottom{display:flex;gap:12px;flex:1;min-height:0}
+  .cell{flex:1;background:#070810;border-radius:12px;position:relative}
+  canvas{position:absolute;inset:0;width:100%;height:100%}
+  .lbl{position:absolute;top:8px;left:12px;font-size:12px;color:#8f97ab;z-index:2}
+  .panel{position:absolute;right:18px;bottom:16px;z-index:5;background:rgba(20,22,32,.82);
+         border:1px solid rgba(140,170,230,.25);border-radius:12px;padding:12px 14px;width:270px}
+  label{display:flex;justify-content:space-between;font-size:12.5px;color:#cfd2dc;margin-bottom:6px}
+  label b{color:#8fb7ff;font-weight:600}
+  input[type=range]{width:100%;accent-color:#8fb7ff;cursor:pointer}
+  .bits{position:absolute;bottom:14px;left:12px;font-size:13px;color:#a8adbd;z-index:2}
+  .bits b{color:#8fb7ff;font-size:22px}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>Information flow</h1>
+  <p>Two chaotic signals wired together: <b style="color:#5aa0ff">x</b> drives <b style="color:#ffb45a">y</b> with strength c. As a data scientist, measure how much information the wire carries — in bits — from the numbers alone.</p></div>
+<div class="wrap">
+  <div class="top"><div class="lbl">the two signals over time — x (blue), y (orange)</div><canvas id="ts"></canvas></div>
+  <div class="bottom">
+    <div class="cell"><div class="lbl">y(n) vs x(n) — the cloud tightens to a line as they lock</div>
+      <canvas id="sc"></canvas>
+      <div class="bits">shared information &nbsp; <b id="mi">0.00</b> bits</div></div>
+    <div class="cell"><div class="lbl">how identical? (matching bins)</div><canvas id="hi"></canvas>
+      <div class="panel">
+        <label>coupling c <b id="co">0.00</b></label>
+        <input type="range" id="c" min="0" max="1" step="0.01" value="0">
+      </div></div>
+  </div>
+</div>
+<script>
+// ====== CORE SETTINGS — change these! ======
+const CONFIG = {
+  c: 0.0,     // coupling strength: 0 = strangers, 1 = y becomes identical to x
+  r: 4.0,     // logistic rate (4 = fully chaotic)
+  N: 3000,    // how many samples to generate
+  bins: 14    // bins used for the information (bits) calculation
+};
+// ===========================================
+
+const $=id=>document.getElementById(id);
+let x=[],y=[];
+function f(u){return CONFIG.r*u*(1-u);}
+function generate(){
+  const N=CONFIG.N,c=CONFIG.c; x=new Array(N); y=new Array(N);
+  x[0]=0.2001; y[0]=0.75;
+  for(let n=0;n<N-1;n++){
+    x[n+1]=f(x[n]);                              // driver: pure chaos
+    y[n+1]=(1-c)*f(y[n]) + c*f(x[n]);            // follower: pulled toward the driver's rule
+  }
+}
+function mutualInfoBits(){
+  const nb=CONFIG.bins,N=x.length; const P=Array.from({length:nb},()=>new Float64Array(nb));
+  const clamp=v=>Math.min(nb-1,Math.max(0,Math.floor(v*nb)));
+  for(let n=0;n<N;n++) P[clamp(x[n])][clamp(y[n])]++;
+  let tot=0;for(let i=0;i<nb;i++)for(let j=0;j<nb;j++)tot+=P[i][j];
+  const Px=new Float64Array(nb),Py=new Float64Array(nb);
+  for(let i=0;i<nb;i++)for(let j=0;j<nb;j++){P[i][j]/=tot;Px[i]+=P[i][j];Py[j]+=P[i][j];}
+  let I=0;for(let i=0;i<nb;i++)for(let j=0;j<nb;j++){const p=P[i][j];
+    if(p>0) I+=p*Math.log2(p/(Px[i]*Py[j]));}
+  return {I,P,nb};
+}
+
+const cvs={ts:$('ts'),sc:$('sc'),hi:$('hi')};
+function fit(cv){const dpr=devicePixelRatio||1,r=cv.getBoundingClientRect();
+  cv.width=r.width*dpr;cv.height=r.height*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  return {g,w:r.width,h:r.height};}
+let V={};
+function fitAll(){V.ts=fit(cvs.ts);V.sc=fit(cvs.sc);V.hi=fit(cvs.hi);draw();}
+addEventListener('resize',fitAll);
+
+$('c').oninput=e=>{CONFIG.c=+e.target.value;$('co').textContent=CONFIG.c.toFixed(2);generate();draw();};
+
+function draw(){
+  const info=mutualInfoBits();
+  $('mi').textContent=info.I.toFixed(2);
+  // time series (first ~160 samples)
+  let {g,w,h}=V.ts;g.clearRect(0,0,w,h);g.fillStyle='#070810';g.fillRect(0,0,w,h);
+  const m=160, sx=w/m, ax=(v)=>h*0.1+(1-v)*h*0.8;
+  line(g,x,m,sx,ax,'#5aa0ff',1.6,false);
+  line(g,y,m,sx,ax,'#ffb45a',1.6,true);
+  // scatter y vs x
+  ({g,w,h}=V.sc);g.clearRect(0,0,w,h);g.fillStyle='#070810';g.fillRect(0,0,w,h);
+  g.strokeStyle='rgba(255,255,255,.12)';g.beginPath();g.moveTo(0,h);g.lineTo(w,0);g.stroke();
+  g.fillStyle='rgba(140,183,255,.45)';
+  for(let n=0;n<x.length;n++){g.fillRect(x[n]*w-1, (1-y[n])*h-1, 2,2);}
+  // heat grid of matching bins
+  ({g,w,h}=V.hi);g.clearRect(0,0,w,h);g.fillStyle='#070810';g.fillRect(0,0,w,h);
+  const nb=info.nb, cw=w/nb, ch=h/nb; let mx=0;
+  for(let i=0;i<nb;i++)for(let j=0;j<nb;j++)mx=Math.max(mx,info.P[i][j]);
+  for(let i=0;i<nb;i++)for(let j=0;j<nb;j++){const v=info.P[i][j]/(mx||1);
+    if(v>0){g.fillStyle='rgba(143,183,255,'+(0.1+0.9*v).toFixed(3)+')';
+      g.fillRect(i*cw,(nb-1-j)*ch,cw+.5,ch+.5);}}
+}
+function line(g,arr,m,sx,ax,col,lw,dash){
+  g.strokeStyle=col;g.lineWidth=lw;g.setLineDash(dash?[5,4]:[]);g.beginPath();
+  for(let i=0;i<m;i++){const X=i*sx,Y=ax(arr[i]);i?g.lineTo(X,Y):g.moveTo(X,Y);}
+  g.stroke();g.setLineDash([]);
+}
+generate();setTimeout(fitAll,30);
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Millennium Bridge</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#080910;color:#ede7d6;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas{position:fixed;inset:0;display:block}
+  #title{position:fixed;top:12px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#ff8a5a;text-shadow:0 0 16px rgba(255,120,80,.4)}
+  #title p{margin:3px auto 0;max-width:640px;font-size:12.5px;color:#b6ad97}
+  .panel{position:fixed;z-index:3;background:rgba(20,22,32,.74);backdrop-filter:blur(8px);
+         border:1px solid rgba(255,150,110,.2);border-radius:14px;padding:14px 16px;top:70px;left:16px;width:250px}
+  .row{margin:0 0 12px}.row:last-child{margin-bottom:0}
+  label{display:flex;justify-content:space-between;font-size:12.5px;color:#cfc6b0;margin-bottom:5px}
+  label b{color:#ff8a5a;font-weight:600}
+  input[type=range]{width:100%;accent-color:#ff8a5a;cursor:pointer}
+  button{width:100%;padding:8px;margin-top:4px;font-size:12.5px;font-weight:600;color:#1a140a;
+         background:#ff8a5a;border:none;border-radius:9px;cursor:pointer}
+  #meter{position:fixed;bottom:22px;left:0;right:0;text-align:center;z-index:3;pointer-events:none}
+  #meter .big{font-size:19px;font-weight:700}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#ff8a5a;text-decoration:none;font-size:13px;
+         background:rgba(20,22,32,.7);border:1px solid rgba(255,150,110,.2);border-radius:8px;padding:5px 10px}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>The bridge that danced</h1>
+  <p>Seen from above. People step in time with the sway to keep balance — which makes it sway harder — which syncs more people. A runaway loop. Below a critical crowd it stays calm; above it, disaster.</p></div>
+<div class="panel">
+  <div class="row"><label>Crowd size <b id="no">160</b></label><input type="range" id="n" min="20" max="500" step="10" value="160"></div>
+  <div class="row"><label>Bridge damping <b id="go">1.0</b></label><input type="range" id="g" min="0.4" max="4" step="0.1" value="1.0"></div>
+  <div class="row"><button id="reset">Reset the bridge</button></div>
+</div>
+<div id="meter"><div class="big" id="status">people step onto the bridge…</div></div>
+<canvas id="c"></canvas>
+<script>
+// ====== CORE SETTINGS — change these! ======
+const CONFIG = {
+  N: 160,        // how many people on the bridge (the tipping knob)
+  gamma: 1.0,    // how fast the bridge sway dies away on its own (damping)
+  beta: 0.02,    // how hard a synced crowd drives the sway
+  kappa: 1.0     // how strongly people fall into step with the sway
+};
+// ===========================================
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H,dpr,th=[],om=[],A=0.02;
+function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+addEventListener('resize',resize);resize();
+
+function build(n){th=[];om=[];A=0.02;for(let i=0;i<n;i++){th.push(Math.random()*6.28);
+  om.push(2*Math.PI*(0.9+0.05*(Math.random()*2-1)));}}
+build(CONFIG.N);
+const $=id=>document.getElementById(id);
+$('n').oninput=e=>{CONFIG.N=+e.target.value;$('no').textContent=CONFIG.N;build(CONFIG.N);};
+$('g').oninput=e=>{CONFIG.gamma=+e.target.value;$('go').textContent=CONFIG.gamma.toFixed(1);};
+$('reset').onclick=()=>build(CONFIG.N);
+
+let last=performance.now();
+function frame(now){let dt=Math.min(.03,(now-last)/1000);last=now;
+  const N=th.length;
+  let sS=0,sC=0;for(let i=0;i<N;i++){sS+=Math.sin(th[i]);sC+=Math.cos(th[i]);}
+  const r=Math.hypot(sS,sC)/N, psi=Math.atan2(sS,sC);
+  for(let i=0;i<N;i++) th[i]+=dt*(om[i]+CONFIG.kappa*A*Math.sin(psi-th[i]));  // people chase the sway
+  A+=dt*(-CONFIG.gamma*A+CONFIG.beta*N*r);                                     // synced crowd drives the sway
+  draw(A*Math.sin(psi),A,r);requestAnimationFrame(frame);
+}
+function draw(dsp,A,r){
+  ctx.fillStyle='#080910';ctx.fillRect(0,0,W,H);
+  const cx=W/2, shift=dsp*90, deckX=cx+shift, top=H*0.16, bot=H*0.86;
+  ctx.strokeStyle='#6b6f7d';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(deckX,top);ctx.lineTo(deckX,bot);ctx.stroke();
+  const N=th.length;
+  for(let i=0;i<N;i++){const y=top+(bot-top)*(i+0.5)/N, jx=18*Math.sin(th[i]);
+    ctx.fillStyle='#5aa0ff';ctx.beginPath();ctx.arc(deckX+jx,y,3.4,0,7);ctx.fill();}
+  const s=$('status');
+  const wob=Math.min(1,A);
+  if(A>0.5){s.textContent='⚠ The bridge sways — the crowd locks in step! ('+Math.round(100*r)+'% synced)';s.style.color='#ff7a5a';}
+  else {s.textContent='steady… small crowd, calm bridge ('+Math.round(100*r)+'% synced)';s.style.color='#7ef2a0';}
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

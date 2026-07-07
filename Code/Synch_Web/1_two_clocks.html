@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two Clocks — Huygens</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#080910;color:#ede7d6;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas{position:fixed;inset:0;display:block}
+  #title{position:fixed;top:12px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#ffbe5a;text-shadow:0 0 16px rgba(255,190,90,.4)}
+  #title p{margin:3px auto 0;max-width:620px;font-size:12.5px;color:#b6ad97}
+  .panel{position:fixed;z-index:3;background:rgba(20,22,32,.74);backdrop-filter:blur(8px);
+         border:1px solid rgba(255,210,130,.18);border-radius:14px;padding:14px 16px}
+  #controls{top:70px;left:16px;width:250px}
+  .row{margin:0 0 12px}.row:last-child{margin-bottom:0}
+  label{display:flex;justify-content:space-between;font-size:12.5px;color:#cfc6b0;margin-bottom:5px}
+  label b{color:#ffbe5a;font-weight:600}
+  input[type=range]{width:100%;accent-color:#ffbe5a;cursor:pointer}
+  button{width:100%;padding:8px;margin-top:4px;font-size:12.5px;font-weight:600;color:#1a140a;
+         background:#ffbe5a;border:none;border-radius:9px;cursor:pointer}
+  .readout{position:fixed;bottom:20px;left:0;right:0;text-align:center;z-index:3;pointer-events:none}
+  .readout .big{font-size:20px;font-weight:700}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#ffbe5a;text-decoration:none;font-size:13px;
+         background:rgba(20,22,32,.7);border:1px solid rgba(255,210,130,.2);border-radius:8px;padding:5px 10px}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>The clocks that talked</h1>
+  <p>Two pendulums on one wall. The wall carries a whisper between them — the coupling — and it pulls their rhythms together.</p></div>
+<div class="panel" id="controls">
+  <div class="row"><label>Clock 1 speed <b id="f1o">1.00</b> Hz</label><input type="range" id="f1" min="0.6" max="1.4" step="0.01" value="1.0"></div>
+  <div class="row"><label>Clock 2 speed <b id="f2o">1.12</b> Hz</label><input type="range" id="f2" min="0.6" max="1.4" step="0.01" value="1.12"></div>
+  <div class="row"><label>Coupling through wall <b id="ko">0.80</b></label><input type="range" id="k" min="0" max="3" step="0.05" value="0.8"></div>
+  <div class="row"><button id="reset">Restart out of step</button></div>
+</div>
+<div class="readout"><div class="big" id="status">—</div></div>
+<canvas id="c"></canvas>
+<script>
+// ====== CORE SETTINGS — change these! ======
+const CONFIG = {
+  f1: 1.00,      // natural speed of clock 1 (Hz)
+  f2: 1.12,      // natural speed of clock 2 (Hz)
+  K: 0.80,       // coupling strength through the wall
+  maxSwing: 0.5  // biggest pendulum angle (radians)
+};
+// ===========================================
+
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H,dpr, th1=0, th2=Math.PI, hist=[];
+function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+addEventListener('resize',resize);resize();
+
+const $=id=>document.getElementById(id);
+$('f1').oninput=e=>{CONFIG.f1=+e.target.value;$('f1o').textContent=CONFIG.f1.toFixed(2);};
+$('f2').oninput=e=>{CONFIG.f2=+e.target.value;$('f2o').textContent=CONFIG.f2.toFixed(2);};
+$('k').oninput =e=>{CONFIG.K =+e.target.value;$('ko').textContent =CONFIG.K.toFixed(2);};
+$('reset').onclick=()=>{th1=0;th2=Math.PI;hist=[];};
+
+let last=performance.now();
+function frame(now){
+  let dt=Math.min(0.03,(now-last)/1000);last=now;
+  const w1=2*Math.PI*CONFIG.f1, w2=2*Math.PI*CONFIG.f2, K=CONFIG.K;
+  // Kuramoto coupling — the same math as fireflies, with just two oscillators
+  th1+=dt*(w1+K*Math.sin(th2-th1));
+  th2+=dt*(w2+K*Math.sin(th1-th2));
+  // track the phase gap to decide if they have locked
+  let d=Math.atan2(Math.sin(th1-th2),Math.cos(th1-th2));
+  hist.push(d); if(hist.length>180) hist.shift();
+  draw(d);
+  requestAnimationFrame(frame);
+}
+function pendulum(px,beamY,ang,col){
+  const L=H*0.34, bx=px+L*Math.sin(ang), by=beamY+L*Math.cos(ang);
+  ctx.strokeStyle=col;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px,beamY);ctx.lineTo(bx,by);ctx.stroke();
+  ctx.fillStyle=col;ctx.beginPath();ctx.arc(bx,by,13,0,7);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px,beamY,3,0,7);ctx.fill();
+}
+function draw(d){
+  ctx.fillStyle='#080910';ctx.fillRect(0,0,W,H);
+  const beamY=H*0.30, sway=6*(Math.sin(th1)+Math.sin(th2))/2;   // the shared wall sways a little
+  const p1=W*0.42+sway, p2=W*0.58+sway;
+  ctx.strokeStyle='#6b6f7d';ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(W*0.30+sway,beamY);ctx.lineTo(W*0.70+sway,beamY);ctx.stroke();
+  pendulum(p1,beamY,CONFIG.maxSwing*Math.sin(th1),'#37d0e0');
+  pendulum(p2,beamY,CONFIG.maxSwing*Math.sin(th2),'#ffbe5a');
+  // locked? phase gap barely moves over the recent history
+  const s=$('status');
+  if(hist.length>150){
+    let mn=Math.min(...hist),mx=Math.max(...hist);
+    if(mx-mn<0.15){ s.textContent='🔒 Locked — same rhythm, held forever'; s.style.color='#7ef2a0'; }
+    else { s.textContent='drifting… the wall is still reeling them in'; s.style.color='#b6ad97'; }
+  } else { s.textContent='two clocks, out of step…'; s.style.color='#b6ad97'; }
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

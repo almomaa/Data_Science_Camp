@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Good Sync, Bad Sync</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#080910;color:#ede7d6;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  #title{text-align:center;padding:14px 12px 4px}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#ffbe5a}
+  #title p{margin:4px auto 0;max-width:680px;font-size:12.5px;color:#b6ad97}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#ffbe5a;text-decoration:none;font-size:13px;
+         background:rgba(20,22,32,.7);border:1px solid rgba(255,210,130,.2);border-radius:8px;padding:5px 10px}
+  .stage{display:flex;gap:14px;justify-content:center;align-items:stretch;padding:10px 16px 16px;height:calc(100% - 78px)}
+  .card{flex:1;max-width:360px;background:rgba(20,22,32,.6);border:1px solid rgba(255,255,255,.08);
+        border-radius:16px;padding:14px 16px;display:flex;flex-direction:column}
+  .card h2{margin:0 0 2px;font-size:17px}
+  .verdict{font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px}
+  .good .verdict{color:#7ef2a0}.bad .verdict{color:#ff6a6a}.fun .verdict{color:#ffbe5a}
+  canvas{flex:1;width:100%;border-radius:10px;background:#05060a}
+  .card p{margin:10px 0 0;font-size:12.5px;color:#b6ad97;line-height:1.5}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>Good sync, bad sync</h1>
+  <p>The very same maths — many oscillators pulling together — can keep you alive or put you in danger. It all depends on <i>how much</i> they sync.</p></div>
+<div class="stage">
+  <div class="card good"><div class="verdict">healthy · good</div><h2>Heartbeat</h2>
+    <canvas class="sim" data-k="1.4"></canvas>
+    <p>Pacemaker cells sync <b>just enough</b> to beat as one, steady and strong. This synchronization is literally keeping you alive.</p></div>
+  <div class="card bad"><div class="verdict">seizure · dangerous</div><h2>Brain seizure</h2>
+    <canvas class="sim" data-k="6"></canvas>
+    <p>When far <b>too many</b> neurons fire in lock-step at once, the result is an epileptic seizure. Here, too much sync is the illness.</p></div>
+  <div class="card fun"><div class="verdict">crowd · for fun</div><h2>Applause</h2>
+    <canvas class="sim" data-k="2.6"></canvas>
+    <p>An audience drifts from random clapping into a <b>rhythmic beat</b> — spontaneous sync you can hear, harmless and delightful.</p></div>
+</div>
+<script>
+// ====== CORE SETTINGS — change these! ======
+// Each panel is a little ring of oscillators; only the coupling K differs.
+const CONFIG = { N: 90, variety: 0.5, good: 1.4, seizure: 6.0, applause: 2.6 };
+// ===========================================
+
+const sims=[...document.querySelectorAll('.sim')].map(cv=>{
+  const ctx=cv.getContext('2d');
+  const N=CONFIG.N, th=[],om=[];
+  for(let i=0;i<N;i++){th.push(Math.random()*6.28);om.push(1+CONFIG.variety*(Math.random()*2-1));}
+  return {cv,ctx,th,om,K:+cv.dataset.k};
+});
+function fit(){for(const s of sims){const dpr=devicePixelRatio||1,r=s.cv.getBoundingClientRect();
+  s.cv.width=r.width*dpr;s.cv.height=r.height*dpr;s.ctx.setTransform(dpr,0,0,dpr,0,0);s.w=r.width;s.h=r.height;}}
+addEventListener('resize',fit);setTimeout(fit,30);
+
+let last=performance.now();
+function frame(now){let dt=Math.min(.04,(now-last)/1000);last=now;
+  for(const s of sims){
+    if(!s.w){fit();}
+    let sS=0,sC=0;for(let i=0;i<s.th.length;i++){sS+=Math.sin(s.th[i]);sC+=Math.cos(s.th[i]);}
+    const r=Math.hypot(sS,sC)/s.th.length, psi=Math.atan2(sS,sC);
+    for(let i=0;i<s.th.length;i++) s.th[i]+=dt*(s.om[i]+s.K*r*Math.sin(psi-s.th[i]));
+    const g=s.ctx,W=s.w,H=s.h,cx=W/2,cy=H/2,R=Math.min(W,H)*0.34;
+    g.fillStyle='#05060a';g.fillRect(0,0,W,H);
+    for(let i=0;i<s.th.length;i++){const a=s.th[i],x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);
+      const b=Math.exp(2*(Math.cos(a)-1));
+      g.fillStyle='rgba(255,'+Math.round(150+90*b)+','+Math.round(80+60*b)+','+(0.35+0.65*b)+')';
+      g.beginPath();g.arc(x,y,3+3*b,0,7);g.fill();}
+    // a pulse dot in the centre = the collective beat
+    const beat=Math.exp(3*(Math.cos(psi)-1))*r;
+    g.fillStyle='rgba(255,210,120,'+beat.toFixed(3)+')';g.beginPath();g.arc(cx,cy,10+30*beat,0,7);g.fill();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

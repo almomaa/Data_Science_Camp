@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taming Chaos — Lorenz sync</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#05060a;color:#ede7d6;
+            font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas{position:fixed;inset:0;display:block}
+  #title{position:fixed;top:12px;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+  #title h1{margin:0;font-size:20px;font-weight:600;color:#37d0e0;text-shadow:0 0 16px rgba(55,208,224,.4)}
+  #title p{margin:3px auto 0;max-width:640px;font-size:12.5px;color:#b6ad97}
+  .panel{position:fixed;z-index:3;background:rgba(16,18,26,.74);backdrop-filter:blur(8px);
+         border:1px solid rgba(120,200,230,.22);border-radius:14px;padding:14px 16px;bottom:18px;left:50%;transform:translateX(-50%);width:min(560px,92vw)}
+  .rowflex{display:flex;align-items:center;gap:12px}
+  label{font-size:12.5px;color:#cfc6b0;white-space:nowrap}
+  label b{color:#37d0e0;font-weight:600}
+  input[type=range]{flex:1;accent-color:#37d0e0;cursor:pointer}
+  button{padding:7px 12px;font-size:12.5px;font-weight:600;color:#04222a;background:#37d0e0;border:none;border-radius:9px;cursor:pointer}
+  #status{position:fixed;top:64px;left:0;right:0;text-align:center;z-index:3;pointer-events:none;font-size:15px;font-weight:600}
+  a.home{position:fixed;top:14px;left:14px;z-index:4;color:#37d0e0;text-decoration:none;font-size:13px;
+         background:rgba(16,18,26,.7);border:1px solid rgba(120,200,230,.25);border-radius:8px;padding:5px 10px}
+</style>
+</head>
+<body>
+<a class="home" href="index.html">← menu</a>
+<div id="title"><h1>Taming chaos</h1>
+  <p>Two chaotic Lorenz "weathers" (cyan &amp; orange), started far apart. Drag the coupling up and watch them lock onto the very same chaotic dance.</p></div>
+<div id="status">—</div>
+<div class="panel"><div class="rowflex">
+  <button id="reset">Fling apart</button>
+  <label>coupling c = <b id="co">0.0</b></label>
+  <input type="range" id="c" min="0" max="12" step="0.1" value="0">
+</div></div>
+<canvas id="cv"></canvas>
+<script>
+// ====== CORE SETTINGS — change these! ======
+const CONFIG = {
+  c: 0.0,                    // coupling between the two systems (drag the slider)
+  sigma: 10, rho: 28, beta: 8/3,   // the classic Lorenz constants
+  speed: 1.2                 // how fast the simulation runs
+};
+// ===========================================
+
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let W,H,dpr; let S=[1,1,20,-6,4,25]; let tr1=[],tr2=[]; let ghost=[];
+function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);}
+addEventListener('resize',resize);resize();
+
+const $=id=>document.getElementById(id);
+$('c').oninput=e=>{CONFIG.c=+e.target.value;$('co').textContent=CONFIG.c.toFixed(1);};
+$('reset').onclick=()=>{S=[1,1,20,-6,4,25];tr1=[];tr2=[];};
+
+// project 3D (x,y,z) -> screen using the x and z coordinates
+function px(x){return W/2 + x*(Math.min(W,H)*0.017);}
+function py(z){return H*0.60 - (z-25)*(Math.min(W,H)*0.015);}
+
+// build a faint "ghost" attractor once
+(function(){let s=[1,1,20];const dt=0.006;
+  for(let i=0;i<12000;i++){s=rk(s,dt,0,true);if(i>1500&&i%3===0)ghost.push([s[0],s[2]]);}})();
+
+function deriv(st,c){
+  const {sigma,rho,beta}=CONFIG;
+  const [x1,y1,z1,x2,y2,z2]=st;
+  return [ sigma*(y1-x1)+c*(x2-x1), x1*(rho-z1)-y1+c*(y2-y1), x1*y1-beta*z1+c*(z2-z1),
+           sigma*(y2-x2)+c*(x1-x2), x2*(rho-z2)-y2+c*(y1-y2), x2*y2-beta*z2+c*(z1-z2) ];
+}
+function d3(s){const{sigma,rho,beta}=CONFIG;return[sigma*(s[1]-s[0]),s[0]*(rho-s[2])-s[1],s[0]*s[1]-beta*s[2]];}
+function rk(s,dt,c,single){
+  const f=single?d3:(st=>deriv(st,c));
+  const k1=f(s),k2=f(add(s,k1,dt/2)),k3=f(add(s,k2,dt/2)),k4=f(add(s,k3,dt));
+  return s.map((v,i)=>v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));
+}
+function add(s,k,h){return s.map((v,i)=>v+h*k[i]);}
+
+let last=performance.now();
+function frame(now){let dt=Math.min(.04,(now-last)/1000);last=now;
+  const steps=Math.max(1,Math.round(CONFIG.speed*dt/0.006));
+  for(let i=0;i<steps;i++) S=rk(S,0.006,CONFIG.c,false);
+  tr1.push([S[0],S[2]]); tr2.push([S[3],S[5]]);
+  if(tr1.length>260){tr1.shift();tr2.shift();}
+  draw();requestAnimationFrame(frame);
+}
+function draw(){
+  ctx.fillStyle='#05060a';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(120,120,150,.35)';
+  for(const p of ghost) ctx.fillRect(px(p[0]),py(p[1]),1,1);
+  drawTrail(tr1,'rgba(55,208,224,');drawTrail(tr2,'rgba(255,150,60,');
+  dot(S[0],S[2],'#37d0e0');dot(S[3],S[5],'#ff961e');
+  const gap=Math.hypot(S[0]-S[3],S[1]-S[4],S[2]-S[5]);
+  const st=$('status');
+  if(gap<0.5){st.textContent='IN SYNC — the two weathers move as one';st.style.color='#7ef2a0';}
+  else if(gap<5){st.textContent='coupling is fighting the chaos…';st.style.color='#ffd98a';}
+  else {st.textContent='chaos wins — turn the coupling UP';st.style.color='#ff8a8a';}
+}
+function drawTrail(tr,rgb){ctx.lineWidth=1.4;
+  for(let i=1;i<tr.length;i++){ctx.strokeStyle=rgb+(i/tr.length*0.8).toFixed(2)+')';
+    ctx.beginPath();ctx.moveTo(px(tr[i-1][0]),py(tr[i-1][1]));ctx.lineTo(px(tr[i][0]),py(tr[i][1]));ctx.stroke();}}
+function dot(x,z,col){ctx.fillStyle=col;ctx.beginPath();ctx.arc(px(x),py(z),5,0,7);ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
